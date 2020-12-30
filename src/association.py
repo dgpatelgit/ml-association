@@ -37,7 +37,36 @@ def filterSupportCount(sp, minSc):
     return {i: sc for i, sc in sp.items() if sc >= minSc}
 
 
-def computeItemSets(itemSets):
+def applyAprioriPrinciple(itemSets, selectedItemSets):
+    """
+    Apply apriori principle 
+        'if an item set is frequent, 
+        then all of its subsets must also be frequent.'
+    """
+    if len(selectedItemSets) == 0:
+        return []
+
+    returnItemSets = []
+    subsetLen = None
+    for s in itemSets:
+        allSubsetPresent = True
+        if not subsetLen:
+            subsetLen = len(s) - 1
+        l = s + s[0 : subsetLen - 1]
+        for i in range(len(s)):
+            subset = tuple(sorted(l[i : i + subsetLen]))
+            if subset not in selectedItemSets:
+                print('Subset', subset, 'not present, ignoring itemset', s ,'as per apriori principle')
+                allSubsetPresent = False
+                break
+
+        if allSubsetPresent:
+            returnItemSets.append(s)
+
+    return returnItemSets
+
+
+def computeItemSets(itemSets, selectedItemSets):
     """
     Compute item sets of next level from given itemsets.
     """
@@ -45,20 +74,27 @@ def computeItemSets(itemSets):
     outItemSets = []
     for indx1 in range(0, len(sp)):
         for indx2 in range(indx1 + 1, len(sp)):
-            newItemSet = tuple(set(sp[indx1] + sp[indx2]))
-            if len(newItemSet) == len(sp[indx1]) + 1 and newItemSet not in outItemSets:
-                outItemSets.append(newItemSet)
-            
-    return outItemSets
+            if sp[indx1][-1] != sp[indx2][-1] and tuple(sp[indx1][:-1]) == tuple(sp[indx2][:-1]):
+                newItemSet = tuple(set(sp[indx1] + sp[indx2]))
+                if len(newItemSet) == len(sp[indx1]) + 1 and newItemSet not in outItemSets:
+                    outItemSets.append(newItemSet)
+
+    return applyAprioriPrinciple(outItemSets, selectedItemSets)
 
 
 itemSets = extractUniqueItems(transactions)
+selectedItemSets = []
 
 while len(itemSets) > 0:
-    print('ItemSets',itemSets)
+    print('ItemSets', itemSets)
+
     supportCount = computeSupportCount(itemSets, transactions)
-    #print('Intial SP Count', supportCount)
+    print('Intial SP Count', supportCount)
+
     supportCountFiltered = filterSupportCount(supportCount, minSupport)
     print('SP Count', supportCountFiltered)
 
-    itemSets = computeItemSets(supportCountFiltered)
+    selectedItemSets += list(supportCountFiltered.keys())
+    print('selectedItemSets', selectedItemSets)
+
+    itemSets = computeItemSets(supportCountFiltered, selectedItemSets)
